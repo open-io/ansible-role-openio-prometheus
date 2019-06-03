@@ -8,8 +8,6 @@
 #
 # $ DISTRIBUTION=centos VERSION=7 docker-tests.sh
 
-readonly ROLE_NAME=ansible-role-openio-prometheus
-
 #{{{ Bash settings
 # abort on nonzero exitstatus
 set -o errexit
@@ -24,14 +22,12 @@ readonly script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 IFS=$'\t\n'   # Split on newlines and tabs (but not on spaces)
 
 readonly container_id="$(mktemp)"
-readonly role_dir="/etc/ansible/roles/$ROLE_NAME"
-
+readonly role_dir='/etc/ansible/roles/role_under_test'
 if [ "$#" -ne 1 ]; then
     readonly test_playbook="${role_dir}/docker-tests/test.yml"
 else
     readonly test_playbook="${role_dir}/docker-tests/$1.yml"
 fi
-inventory="${role_dir}/docker-tests/inventory.ini"
 readonly requirements="${role_dir}/docker-tests/requirements.yml"
 
 readonly docker_image="cdelgehier/docker_images_ansible"
@@ -71,8 +67,8 @@ configure_environment() {
     'centos_6')
       run_opts+=('--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro')
       ;;
-    'centos_7'|'fedora_25')
-      # init=/usr/lib/systemd/systemd
+    'centos_8'|'centos_7'|'fedora_25')
+      init=/usr/lib/systemd/systemd
       run_opts+=('--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro')
       ;;
     'ubuntu_14.04')
@@ -82,8 +78,8 @@ configure_environment() {
         run_opts+=('--volume=/sys/fs/selinux:/sys/fs/selinux:ro')
       fi
       ;;
-    'ubuntu_16.04'|'debian_8')
-      run_opts=('--volume=/run' '--volume=/run/lock' '--volume=/tmp' '--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro' '--cap-add=SYS_ADMIN' '--cap-add=SYS_RESOURCE')
+    'ubuntu_18.04'|'ubuntu_16.04'|'debian_8')
+      run_opts=('--volume=/run' '--volume=/run/lock' '--volume=/tmp' '--volume=/sys/fs/cgroup:/sys/fs/cgroup:ro' '--cap-add=NET_ADMIN' '--cap-add=SYS_ADMIN' '--cap-add=SYS_RESOURCE')
 
       #if [ -x '/usr/sbin/getenforce' ]; then
       #  run_opts+=('--volume=/sys/fs/selinux:/sys/fs/selinux:ro')
@@ -104,21 +100,18 @@ build_container() {
 }
 
 start_container() {
-  cid=$(docker ps -qf "ancestor=$image_tag")
-  if [ -z "$cid" ]; then
-      log "Starting container"
-      set -x
-      docker run --detach \
-        "${run_opts[@]}" \
-        --volume="${PWD}:${role_dir}:rw" \
-        "${image_tag}" \
-        "${init}" \
-        > "${container_id}"
-      set +x
-  else
-      log "Reusing existing container"
-      echo $cid > "${container_id}"
-  fi
+  log "Starting container"
+  set -x
+  docker run --detach \
+    "${run_opts[@]}" \
+    --volume="${PWD}:${role_dir}:rw" \
+    -e IPVAGRANT=${IPVAGRANT:=""} \
+    -e USR=${USR:=""} \
+    -e PASS=${PASS:=""} \
+    "${image_tag}" \
+    "${init}" \
+    > "${container_id}"
+  set +x
 }
 
 get_container_id() {
@@ -160,34 +153,22 @@ run_syntax_check() {
 
 run_test_playbook() {
   log 'Running playbook'
-  if exec_container cat "$inventory"; then
-      exec_container ansible-playbook -i "${inventory}" "${test_playbook}" --diff
-  else
-      exec_container ansible-playbook "${test_playbook}" --diff
-  fi
+  exec_container ansible-playbook "${test_playbook}" --diff
   log 'Run finished'
 }
 
 run_galaxy_install() {
   log "Running ansible-galaxy install"
-  if [ -f "$requirements" ]; then
-      exec_container ansible-galaxy install -r "${requirements}"
-      log "Requirements installed"
-  else
-      log "Requirements skipped"
-  fi
-
+  exec_container ansible-galaxy install -r "${requirements}"
+  log "Requirements installed"
 }
 
 run_idempotence_test() {
   log 'Running idempotence test'
   local output
   output="$(mktemp)"
-  if exec_container cat "$inventory"; then
-      exec_container ansible-playbook -i "${inventory}" "${test_playbook}" --diff 2>&1 | tee "${output}"
-  else
-      exec_container ansible-playbook "${test_playbook}" --diff 2>&1 | tee "${output}"
-  fi
+
+  exec_container ansible-playbook "${test_playbook}" --diff 2>&1 | tee "${output}"
 
   if grep -q "changed=${NORMALCHANGES:=0}.*failed=0" "${output}"; then
     result='pass'
@@ -221,6 +202,5 @@ log() {
 
 #}}}
 
-# trap cleanup EXIT
-
 main "${@}"
+
