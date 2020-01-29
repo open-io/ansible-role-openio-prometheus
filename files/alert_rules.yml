@@ -257,4 +257,17 @@ groups:
             You can test the availability by doing a HTTP GET request on the IP/port of the service.
             The alert will be resolved when '{{ $labels.module }}' is up and running
             and can be contacted by the admin machine.
+
+      - alert: Multiple coexisting software versions
+        expr: count(count(netdata_command__average{dimension=~'.*version'}) by (dimension, chart)) by (dimension) != 1
+        for: 60s
+        labels:
+          code: ERROR_MULTIPLE_VERSIONS
+          severity: low
+          software: '{{ $labels.dimension }}'
+        annotations:
+          details: The version '{{ $labels.software }}' is reporting different values across the cluster.
+          solutions: >-
+            Update the packages associated with the software.
+            This alert will be resolved once all versions are the same across the cluster.
 ...
