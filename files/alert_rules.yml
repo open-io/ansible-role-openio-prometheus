@@ -270,4 +270,25 @@ groups:
           solutions: >-
             Update the packages associated with the software.
             This alert will be resolved once all versions are the same across the cluster.
+
+      - alert: RepliEvents
+        expr: count(netdata_beanstalk_jobs_jobs_average{family='tube oio-repli'}) by (host) > 0
+        for: 10m
+        labels:
+          severity: low
+        annotations:
+          summary: Replicator is not working properly
+          description: >-
+            The replicator events queue on server '{{ $labels.host }}' is growing which can show
+            a malfunction in the replicator
+          solutions: >-
+            Analyze the replicator logs (in /var/log/oio/sds/OPENIO/replicator-0/replicator.log) to ensure
+            it is working properly.
+            Also check the replicator is up by running <code>gridinit_cmd status @replicator</code>.
+            You can check the statistics about the replication queue
+            <code>openio events stats --tube oio-repli --oio-ns OPENIO</code>.
+            If the problem persists, contact the OpenIO support team.
+            The alert will be resolved once there are no more events in the 'oio-repli' tube on the node.
+            Note: the speed of the replication highly depends on the network in between and the amount of
+            data to replicate (the fresh data that has been pushed to the cluster).
 ...
