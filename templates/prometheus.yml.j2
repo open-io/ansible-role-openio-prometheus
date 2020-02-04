@@ -35,29 +35,34 @@ scrape_configs:
     - source_labels: [__name__]
       regex: netdata_host_tags
       action: drop
+
       # in: openio.score;OPENIO.account_10_240_0_23_6009
       # out: account
     - source_labels: [chart, dimension]
       regex: openio\.score;[^.]+\.([^_]+)_.+
       target_label: service
+
       # in: openio.score;OPENIO.account_10_240_0_23_6009
       # out: 10.240.0.23:6009
     - source_labels: [chart, dimension]
       regex: openio\.score;[^.]+\.[^_]+_(\d+)_(\d+)_(\d+)_(\d+)_(\d+)
       replacement: ${1}.${2}.${3}.${4}:${5}
       target_label: s_instance
+
       # in: openio.byte_avail;OPENIO.10_240_0_23_6001.2579104859421935362
       # out: 10.240.0.23:6001
     - source_labels: [chart, dimension]
       regex: openio\.byte_(?:avail|free|used);[^.]+\.(\d+)_(\d+)_(\d+)_(\d+)_(\d+)\..+
       replacement: ${1}.${2}.${3}.${4}:${5}
       target_label: s_instance
+
       # in: openio.rep_hits_2xx;OPENIO.10_240_0_23_6201
       # out: 10.240.0.23:6201
     - source_labels: [chart, dimension]
       regex: openio\.rep_hits[^;]+;[^.]+\.(\d+)_(\d+)_(\d+)_(\d+)_(\d+)
       replacement: ${1}.${2}.${3}.${4}:${5}
       target_label: s_instance
+
       # in: web_log_.openio.YOLOREM.meta2.meta2_0.log.access.response_codes
       # out: meta2-0
       # passing names=no to netdata would result in the same, but there could be other side-effects
@@ -65,6 +70,13 @@ scrape_configs:
       regex: web_log_\.(?:[^.]+\.){3}([^_]+)_(\d+)\..+
       replacement: ${1}-${2}
       target_label: service
+
+      # in: memcached_172.30.2.106_6019.delete
+      # out: 172.30.2.106:6019
+    - source_labels: [chart]
+      regex: memcached_(\d+\.\d+\.\d\.\d+)_(\d+)\..+
+      replacement: ${1}:${2}
+      target_label: s_instance
 
 - job_name: netdata_tags
   scrape_interval: {{ prometheus_netdata_tags_interval }}
