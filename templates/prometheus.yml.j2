@@ -71,10 +71,11 @@ scrape_configs:
       replacement: ${1}-${2}
       target_label: service
 
-      # in: memcached_172.30.2.106_6019.delete
+      # in: memcached.172.30.2.106_6019.delete
+      # in: beanstalk.172.30.2.106_6014_global.binlog
       # out: 172.30.2.106:6019
     - source_labels: [chart]
-      regex: memcached_(\d+\.\d+\.\d\.\d+)_(\d+)\..+
+      regex: .*\D(\d+\.\d+\.\d+\.\d+)_(\d+)\D.*
       replacement: ${1}:${2}
       target_label: s_instance
 
