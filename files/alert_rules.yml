@@ -217,7 +217,7 @@ groups:
             If the issue persists, please contact the OpenIO support.
             The alert will be resolved once there is at least one account instance running and scored on the cluster.
 
-      - alert: IAM Backend malfunction
+      - alert: IAMMalfunction
         expr: count(probe_success{service_type=~'galera|keystone'} == 0) > 0
         for: 30s
         labels:
@@ -258,15 +258,19 @@ groups:
             The alert will be resolved when '{{ $labels.module }}' is up and running
             and can be contacted by the admin machine.
 
-      - alert: Multiple coexisting software versions
-        expr: count(count(netdata_command__average{dimension=~'.*version'}) by (dimension, chart)) by (dimension) != 1
+      - alert: MultipleVersions
+        expr: count(count(
+            label_replace(netdata_command__average{dimension=~'.*version'},
+              "software", "$1", "dimension", "(.+)_version"))
+          by (software, chart)) by (software) > 1
         for: 60s
         labels:
           code: ERROR_MULTIPLE_VERSIONS
           severity: low
-          software: '{{ $labels.dimension }}'
         annotations:
-          details: The version '{{ $labels.software }}' is reporting different values across the cluster.
+          summary: Multiple coexisting software versions
+          description: >-
+            The software '{{ $labels.software }}' is reporting different versions across the cluster.
           solutions: >-
             Update the packages associated with the software.
             This alert will be resolved once all versions are the same across the cluster.
