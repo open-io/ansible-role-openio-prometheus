@@ -1,0 +1,28 @@
+---
+groups:
+  - name: openio_aggregation
+    interval: 10s
+    rules:
+      - record: "aggr:openio_score:avg_per_service"
+        expr: "avg(openio_score) by (service_type)"
+
+      - record: "aggr:openio_log_size_bytes:avg"
+        expr: "sum(openio_log_size_bytes_avg) by (host, direction, service_type)"
+      - record: "aggr:openio_log_size_bytes:min"
+        expr: "sum(openio_log_size_bytes_min) by (host, direction, service_type)"
+      - record: "aggr:openio_log_size_bytes:max"
+        expr: "sum(openio_log_size_bytes_max) by (host, direction, service_type)"
+
+      - record: "aggr:openio_log_response_codes:total"
+        expr: "sum(openio_log_requests_total) by (host, code, service_type)"
+
+      - record: "aggr:openio_log_request_methods:total"
+        expr: "sum(openio_log_requests_total) by (host, method, service_type)"
+
+      - record: "aggr:openio_log_duration_seconds:avg"
+        expr: "sum(openio_log_duration_seconds_avg) by (host, service_type)"
+      - record: "aggr:openio_log_duration_seconds:min"
+        expr: "sum(openio_log_duration_seconds_min) by (host, service_type)"
+      - record: "aggr:openio_log_duration_seconds:max"
+        expr: "sum(openio_log_duration_seconds_max) by (host, service_type)"
+...

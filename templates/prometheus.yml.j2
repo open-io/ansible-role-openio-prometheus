@@ -4,176 +4,60 @@ global:
   external_labels:
     monitor: 'master'
 
-{% if prometheus_aggregation_rules | length > 0 %}
-rule_files:
-  {% for rule_file in prometheus_aggregation_rules %}
-  - "{{ prometheus_conf_dir }}/rules/{{ rule_file.name }}.rules"
-  {% endfor %}
-  - "{{ prometheus_conf_dir }}/alerts/default.rules"
-{% endif %}
-
 scrape_configs:
 - job_name: prometheus
-  scrape_interval: 10s
-  scrape_timeout:  10s
+  scrape_interval: {{ openio_prometheus_scrape_interval }}
+  scrape_timeout:  {{ openio_prometheus_scrape_timeout }}
   static_configs:
     - labels:
         host: "{{ ansible_nodename }}"
-      targets: ['{{ prometheus_bind_address }}:{{ prometheus_bind_port }}']
+      targets: ['{{ openio_prometheus_bind_address }}:{{ openio_prometheus_bind_port }}']
 
-{% if prometheus_netdata_enabled -%}
+{% if openio_prometheus_netdata_enabled and openio_prometheus_netdata_group in groups -%}
 - job_name: netdata
-  scrape_interval: {{ prometheus_netdata_interval }}
+  scrape_interval: {{ openio_prometheus_netdata_interval }}
   metrics_path: "/api/v1/allmetrics"
   params:
     format: [prometheus_all_hosts]
   honor_labels: true
-  file_sd_configs:
-    - files:
-      - "{{ prometheus_conf_dir }}/targets/netdata.yml"
-  metric_relabel_configs:
-    - source_labels: [__name__]
-      regex: netdata_host_tags
-      action: drop
+  static_configs:
+{%   for host in groups[openio_prometheus_netdata_group] %}
+    - labels:
+        host: "{{ hostvars[host].ansible_nodename }}"
+      targets:
+{%     set port = hostvars[host].openio_netdata_bind_port | d(openio_prometheus_netdata_bind_port) %}
+{%     set address = hostvars[host].openio_netdata_bind_address | d(hostvars[host].openio_bind_mgmt_address) | d(hostvars[host].openio_bind_address) | d(hostvars[host].ansible_default_ipv4.address) %}
+        - {{ address }}:{{ port }}
+{%   endfor %}
+{% endif %}
 
-      # in: openio.score;OPENIO.account_10_240_0_23_6009
-      # out: account
-    - source_labels: [chart, dimension]
-      regex: openio\.score;[^.]+\.([^_]+)_.+
-      target_label: service
-
-      # in: openio.score;OPENIO.account_10_240_0_23_6009
-      # out: 10.240.0.23:6009
-    - source_labels: [chart, dimension]
-      regex: openio\.score;[^.]+\.[^_]+_(\d+)_(\d+)_(\d+)_(\d+)_(\d+)
-      replacement: ${1}.${2}.${3}.${4}:${5}
-      target_label: s_instance
-
-      # in: openio.byte_avail;OPENIO.10_240_0_23_6001.2579104859421935362
-      # out: 10.240.0.23:6001
-    - source_labels: [chart, dimension]
-      regex: openio\.byte_(?:avail|free|used);[^.]+\.(\d+)_(\d+)_(\d+)_(\d+)_(\d+)\..+
-      replacement: ${1}.${2}.${3}.${4}:${5}
-      target_label: s_instance
-
-      # in: openio.rep_hits_2xx;OPENIO.10_240_0_23_6201
-      # out: 10.240.0.23:6201
-    - source_labels: [chart, dimension]
-      regex: openio\.rep_hits[^;]+;[^.]+\.(\d+)_(\d+)_(\d+)_(\d+)_(\d+)
-      replacement: ${1}.${2}.${3}.${4}:${5}
-      target_label: s_instance
-
-      # in: web_log_.openio.YOLOREM.meta2.meta2_0.log.access.response_codes
-      # out: meta2-0
-      # passing names=no to netdata would result in the same, but there could be other side-effects
-    - source_labels: [chart]
-      regex: web_log_\.(?:[^.]+\.){3}([^_]+)_(\d+)\..+
-      replacement: ${1}-${2}
-      target_label: service
-
-      # in: memcached.172.30.2.106_6019.delete
-      # in: beanstalk.172.30.2.106_6014_global.binlog
-      # out: 172.30.2.106:6019
-    - source_labels: [chart]
-      regex: .*\D(\d+\.\d+\.\d+\.\d+)_(\d+)\D.*
-      replacement: ${1}:${2}
-      target_label: s_instance
-
-- job_name: netdata_tags
-  scrape_interval: {{ prometheus_netdata_tags_interval }}
-  metrics_path: "/api/v1/allmetrics"
-  params:
-    format: [prometheus_all_hosts]
+{% if openio_prometheus_oio_exporter_enabled and openio_prometheus_oio_exporter_group in groups -%}
+- job_name: oio-exporter
+  scrape_interval: {{ openio_prometheus_oio_exporter_interval }}
+  metrics_path: "/metrics"
   honor_labels: true
-  file_sd_configs:
-    - files:
-      - "{{ prometheus_conf_dir }}/targets/netdata.yml"
-  metric_relabel_configs:
-    - source_labels: [__name__]
-      regex: netdata_host_tags
-      action: keep
+  static_configs:
+{%   for host in groups[openio_prometheus_oio_exporter_group] %}
+    - labels:
+        host: "{{ hostvars[host].ansible_nodename }}"
+      targets:
+{%     set port = hostvars[host].openio_oio_exporter_bind_port | d(openio_prometheus_oio_exporter_bind_port) %}
+{%     set address = hostvars[host].openio_oio_exporter_bind_address | d(hostvars[host].openio_bind_mgmt_address) | d(hostvars[host].openio_bind_address) | d(hostvars[host].ansible_default_ipv4.address) %}
+        - {{ address }}:{{ port }}
+{%   endfor %}
 {% endif %}
 
-{% if prometheus_blackbox_enabled -%}
-- job_name: blackbox
-  scrape_interval: {{ prometheus_blackbox_interval }}
-  metrics_path: /probe
-  file_sd_configs:
-    - files:
-        - '{{ prometheus_conf_dir }}/targets/blackbox.yml'
-  relabel_configs:
-    # Module replacements
-    - source_labels: [module]
-      target_label: __param_module
 
-    # in: 10.240.0.23=>10.240.0.24:6014
-    # out: 10.240.0.24:6014
-    - source_labels: [__address__]
-      regex: "[^=]+=>(.+)"
-      target_label: s_instance
+rule_files:
+  - "{{ openio_service_conf_dir }}/rules/*.yml"
 
-    # Target replacements
-    # in: beanstalkd;10.240.0.23=>10.240.0.24:6014
-    # out: 10.240.0.24:6014
-    - source_labels: [module, __address__]
-      regex: (?:beanstalkd|icmpcheck|redis|redissentinel|tcpcheck|zookeeper|oioping|blackbox|keystone);[^=]+=>(.+)
-      target_label: __param_target
-
-    # in: rdir;10.240.0.23=>10.240.0.24:6301
-    # out: http://10.240.0.24:6301/status
-    - source_labels: [module, __address__]
-      regex: (?:account|rdir);[^=]+=>(.+)
-      replacement: http://${1}/status
-      target_label: __param_target
-
-    # in: oioproxy;10.240.0.23=>10.240.0.24:6006
-    # out: http://10.240.0.24:6006/v3.0/status
-    - source_labels: [module, __address__]
-      regex: oioproxy;[^=]+=>(.+)
-      replacement: http://${1}/v3.0/status
-      target_label: __param_target
-
-    # in: oioswift;10.240.0.23=>10.240.0.24:6007
-    # out: http://10.240.0.24:6007/healthcheck
-    - source_labels: [module, __address__]
-      regex: oioswift;[^=]+=>(.+)
-      replacement: http://${1}/healthcheck
-      target_label: __param_target
-
-    # in: keystone;10.240.0.23=>10.240.0.24:5000
-    # out: http://10.240.0.24:5000/v3/auth/tokens
-    - source_labels: [module, __address__]
-      regex: keystone;[^=]+=>(.+)
-      replacement: http://${1}/v3/auth/tokens
-      target_label: __param_target
-
-    # in: rawx;10.240.0.23=>10.240.0.24:6201
-    # out: http://10.240.0.24:6201/info
-    - source_labels: [module, __address__]
-      regex: rawx;[^=]+=>(.+)
-      replacement: http://${1}/info
-      target_label: __param_target
-
-    # in: oiofs;10.240.0.23=>10.240.0.24:6999
-    # out: http://10.240.0.24:6999/stats
-    - source_labels: [module, __address__]
-      regex: oiofs;[^=]+=>(.+)
-      replacement: http://${1}/stats
-      target_label: __param_target
-
-    # Remove the targets part of the address
-    # in: 10.240.0.23=>10.240.0.24:6201
-    # out: 10.240.0.23:6115
-    - source_labels: [__address__]
-      regex: ([^=]+)=>.+
-      replacement: ${1}:{{prometheus_blackbox_port}}
-      target_label: __address__
-
-{% endif %}
-
-{% if prometheus_alertmanager_enabled %}
+{% if openio_prometheus_alertmanager_enabled and openio_prometheus_alertmanager_group in groups -%}
 alerting:
   alertmanagers:
   - static_configs:
-    - targets: ['{{ prometheus_bind_address }}:{{ prometheus_alertmanager_port }}']
+{%   set host = groups[openio_prometheus_alertmanager_group] | first %}
+{%   set port = hostvars[host].openio_alertmanager_bind_port | d(openio_prometheus_alertmanager_bind_port) %}
+{%     set address = hostvars[host].openio_alertmanager_bind_address | d(hostvars[host].openio_bind_mgmt_address) | d(hostvars[host].openio_bind_address) | d(hostvars[host].ansible_default_ipv4.address) %}
+    - targets: ['{{ address }}:{{ port }}']
+    api_version: v2
 {% endif %}

@@ -1,70 +1,50 @@
 ---
-- name: "Prometheus: checks"
-  include_tasks: preflight.yml
-  tags:
-    - configure
-
-- block:
-    - name: "Prometheus: install"
-      include_tasks: "install/{{ ansible_distribution }}.yml"
-      tags: install
-
-    - name: 'Prometheus: Create systemd service configuration directory'
-      file:
-        path: /etc/systemd/system/prometheus.service.d
-        state: directory
-        owner: root
-        group: root
-        mode: 0755
-      tags: configure
-
-    - name: "Prometheus: configure systemd service limits"
-      ini_file:
-        path: /etc/systemd/system/prometheus.service.d/limits.conf
-        section: 'Service'
-        option: '{{ item.key }}'
-        value: '{{ item.value }}'
-        backup: true
-      with_dict: '{{ prometheus_systemd_limits }}'
-      tags: configure
-
-    - name: "Prometheus: configure"
-      include_tasks: "configure.yml"
-      tags: configure
-
-    - name: "Prometheus: setup netdata"
-      template:
-        src: netdata.yml.j2
-        dest: "{{ prometheus_conf_dir }}/targets/netdata.yml"
-        owner: "{{ prometheus_user }}"
-        group: "{{ prometheus_group }}"
-      register: _netdata_conf
-      tags: configure
-  when: inventory_hostname in prometheus_admin_hosts
-
-- name: "Prometheus: setup healthchecks"
-  include_tasks: "healthchecks.yml"
-  when: prometheus_blackbox_enabled
-  tags: configure
-
-- block:
-    - name: "Prometheus: (re)start service"
-      systemd:
-        state: "{{ 'started' if prometheus_provision_only else 'restarted' }}"
-        daemon_reload: true
-        enabled: "{{ prometheus_systemd_enabled }}"
-        name: "prometheus"
-      tags: configure
-
-    - name: "Prometheus: wait for service to be up"
-      wait_for:
-        host: "{{ prometheus_bind_address }}"
-        port: "{{ prometheus_bind_port }}"
-        delay: 10
-      tags: configure
-  when:
-    - inventory_hostname in prometheus_admin_hosts
-    - _netdata_conf is changed or _prometheus_conf is changed or _prometheus_defaults is changed
-     or _prometheus_dirs is changed or _prometheus_aggr is changed
-     or _prometheus_healthchecks is changed or _prometheus_alerts is changed
+- include_role:
+    name: openio-service
+  vars:
+    openio_service_type: "oio-prometheus"
+    openio_service_namespace: "{{ openio_prometheus_namespace }}"
+    openio_service_maintenance_mode: "{{ openio_prometheus_maintenance_mode }}"
+    openio_service_packages:
+      - oio-prometheus
+    openio_service_directories:
+      - path: "{{ openio_service_conf_dir }}/rules"
+      - path: "{{ openio_service_volume }}"
+    openio_service_configuration_files:
+      - name: rules/openio.alerts.yml
+        block_start_string: '§%'
+        block_end_string: '%§'
+        variable_start_string: '§!!'
+        variable_end_string: '!!§'
+      - name: rules/openio.aggregation.yml
+        block_start_string: '§%'
+        block_end_string: '%§'
+        variable_start_string: '§!!'
+        variable_end_string: '!!§'
+      #
+      # Ensure to put prometheus.yml at the end of the list
+      # so that the validate command will be able to access
+      # included rules files
+      #
+      - name: prometheus.yml
+        validate: "/usr/bin/oio-promtool check config %s"
+    openio_service_services:
+      - command: >-
+          /usr/sbin/oio-prometheus
+          --web.console.libraries=/usr/share/oio-prometheus/console_libraries
+          --web.console.templates=/usr/share/oio-prometheus/consoles
+          --storage.tsdb.path={{ openio_service_volume }}
+          --web.listen-address={{ openio_prometheus_bind_address }}:{{ openio_prometheus_bind_port }}
+          --web.external-url=http://{{ openio_prometheus_ext_bind_address }}:{{ openio_prometheus_ext_bind_port }}
+          --web.enable-lifecycle
+          --storage.tsdb.retention={{ openio_prometheus_storage_rentention }}
+          --config.file={{ openio_service_conf_dir }}/prometheus.yml
+          --log.level={{ openio_prometheus_log_level }}
+        redirect_stdout_to_syslog: true
+        limits: "{{ openio_prometheus_limits }}"
+    openio_service_checks:
+      - uri:
+          url: "http://{{ openio_prometheus_bind_address }}:{{ openio_prometheus_bind_port }}/-/ready"
+        retries: 10
+        delay: 2
 ...
