@@ -297,4 +297,18 @@ groups:
             The alert will be resolved once there are no more events in the 'oio-repli' tube on the node.
             Note: the speed of the replication highly depends on the network in between and the amount of
             data to replicate (the fresh data that has been pushed to the cluster).
+
+      - alert: Eventlet package version
+        expr: count(openio_version{software=~"^eventlet.*",version=~"0\\.(\\d|1\\d|2[01234])\\.\\d+-\\d+"}) > 0
+        for: 60s
+        labels:
+          code: ERROR_EVENTLET_VERSION
+          severity: low
+        annotations:
+          summary: Eventlet package version is too old (<0.25)
+          description: >-
+            The software '{{ $labels.software }}' is reporting a too old version
+          solutions: >-
+            Update the eventlet packages to version >= 0.25
+            This alert will be resolved once update is done.
 ...
