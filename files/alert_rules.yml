@@ -216,4 +216,20 @@ groups:
             You can test the availability by doing a HTTP GET request on the IP/port of the service.
             The alert will be resolved when '{{ $labels.module }}' is up and running
             and can be contacted by the admin machine.
+
+      - alert: Eventlet package version
+        expr: count(netdata_command__average{
+          chart=~"cmd_eventlet_version_0\\.(\\d|1\\d|2[01234])\\.\\d+-\\d+\\.eventlet_version"
+          }) > 0
+        for: 60s
+        labels:
+          code: ERROR_EVENTLET_VERSION
+          severity: low
+        annotations:
+          summary: Eventlet package version is too old (<0.25)
+          description: >-
+            The software '{{ $labels.software }}' is reporting a too old version
+          solutions: >-
+            Update the eventlet packages to version >= 0.25
+            This alert will be resolved once update is done.
 ...
