@@ -100,6 +100,7 @@ hostvars[inventory_hostname]['openio_bind_address']) }}"
   changed_when: false
   tags: configure
   become: false
+  check_mode: false
 
 - name: "Fetch inventories"
   fetch:
