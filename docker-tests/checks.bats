@@ -24,13 +24,13 @@ run_only_test() {
 }
 
 @test 'Prometheus config file exists' {
-  run bash -c "docker exec -ti ${SUT_ID} cat /etc/oio/sds/TRAVIS/oio-prometheus-0/prometheus.yml"
+  run bash -c "docker exec -ti ${SUT_ID} cat /etc/oio/sds/TRAVIS/prometheus-0/prometheus.yml"
   echo "output: "$output
   [[ "${status}" -eq "0" ]]
 }
 
 @test 'All targets contain valid YAML' {
-    run bash -c "docker exec -ti ${SUT_ID} find /etc/oio/sds/TRAVIS/oio-prometheus-0/ -name \*.yml -exec python -c \
+    run bash -c "docker exec -ti ${SUT_ID} find /etc/oio/sds/TRAVIS/prometheus-0/ -name \*.yml -exec python -c \
     'import sys,yaml; yaml.load(open(sys.argv[1]).read(), Loader=yaml.SafeLoader);' {} \;"
     echo "output: "$output
     [[ "${output}" -eq "" ]]
