@@ -37,7 +37,7 @@
           --web.listen-address={{ openio_prometheus_bind_address }}:{{ openio_prometheus_bind_port }}
           --web.external-url=http://{{ openio_prometheus_ext_bind_address }}:{{ openio_prometheus_ext_bind_port }}
           --web.enable-lifecycle
-          --storage.tsdb.retention={{ openio_prometheus_storage_rentention }}
+          --storage.tsdb.retention.time={{ openio_prometheus_storage_rentention }}
           --config.file={{ openio_service_conf_dir }}/prometheus.yml
           --log.level={{ openio_prometheus_log_level }}
         redirect_stdout_to_syslog: true
