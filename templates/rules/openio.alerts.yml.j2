@@ -8,7 +8,7 @@ groups:
       # for now
       #
       - alert: UnreachableNode
-        expr: openio_probe_success{service_type='oio-exporter'} == 0
+        expr: sum(up) by (host) == 0
         for: 5m
         labels:
           severity: medium
@@ -64,7 +64,7 @@ groups:
             The alert will be resolved once the disk space is freed below 90% use.
 
       - alert: ServerErrors
-        expr: openio_log_response_code_sum{code=~"5.*"} > 0
+        expr: sum(openio_log_requests_sum{code=~"5.*"}) by (host, service) > 0
         for: 10m
         labels:
           severity: medium
@@ -94,17 +94,18 @@ groups:
             The alert will be resolved once there are no more buried events on the node.
 
       - alert: MetaDown
-        expr: openio_probe_success{service_type=~'meta[012]'} == 0
+        expr: sum(openio_probe_success{service_type=~'meta[012]'}) by (target, service) == 0
         for: 30s
         labels:
           severity: medium
+          host: "{{ $labels.target }}"
         annotations:
           summary: Metadata service down
           description: >-
-            The service '{{ $labels.service }}' on server '{{ $labels.host }}' doesn't respond to healthchecks.
+            The service '{{ $labels.service }}' on server '{{ $labels.target }}' doesn't respond to healthchecks.
           solutions: >-
             Collect status by running <code>gridinit_cmd status @{{$labels.service}}</code>
-            on the node {{$labels.host}}.
+            on the node {{$labels.target}}.
             If the service is down, try repairing it <code>gridinit_cmd repair</code>.
             If the service is still down, check for I/O errors and other causes preventing the service from starting.
             Also look into the logs located in <code>/var/log/oio/sds/</code> for that particular instance.
@@ -113,20 +114,21 @@ groups:
             to <code>oiotool ping IP:PORT</code> command.
 
       - alert: RawxDown
-        expr: openio_probe_success{service_type='rawx'} == 0
+        expr: sum(openio_probe_success{service_type='rawx'}) by (target, service) == 0
         for: 30s
         labels:
           severity: low
+          host: "{{ $labels.target }}"
         annotations:
           summary: RAWX service down
           description: >-
-            The service '{{ $labels.service }}' on server '{{ $labels.host }}' doesn't respond to healthchecks.
+            The service '{{ $labels.service }}' on server '{{ $labels.target }}' doesn't respond to healthchecks.
             This could indicate underlying data disk failure, which needs to be replaced
           solutions: >-
             Start by fetching the status of all services on the cluster
             <code>openio cluster list rawx | grep ' False '</code>.
             Check the associated volumes for I/O errors. Replace the disks if I/O errors have been detected,
-            then try repairing by using <code>gridinit_cmd repair @rawx</code> on node '{{ $labels.host }}'.
+            then try repairing by using <code>gridinit_cmd repair @rawx</code> on node '{{ $labels.target }}'.
             Unlock the score of the service <code>openio cluster unlock rawx '{{ $labels.service }}'</code>,
             then follow the procedure to start rebuilding data on the volume.
             If you are not able to determine the issue, please contact the OpenIO support.
@@ -134,18 +136,19 @@ groups:
             is marked as up in `openio cluster list` and is scored.
 
       - alert: RedisDown
-        expr: openio_probe_success{service_type=~'redis|redissentinel'} == 0
+        expr: sum(openio_probe_success{service_type=~'redis|redissentinel'}) by (target, service) == 0
         for: 60s
         labels:
           severity: medium
+          host: "{{ $labels.target }}"
         annotations:
           summary: Redis backend malfunction
           description: >-
-            The service '{{ $labels.service }}' on server '{{ $labels.host }}' doesn't respond to healthchecks.
+            The service '{{ $labels.service }}' on server '{{ $labels.target }}' doesn't respond to healthchecks.
             This can cause server errors and must be investigated.
           solutions: >-
             Start by checking that the instance is up by running <code>gridinit_cmd status</code>
-            on '{{ $labels.host }}'.
+            on '{{ $labels.target }}'.
             If the instance is broken, consult the logs of the service located in /var/log/oio/sds/.
             Check that the underlying storage device is functional.
             If the problem persists, please contact the OpenIO support.
@@ -193,14 +196,15 @@ groups:
 #            on them to prevent further split-brain damage. Contact OpenIO support for further steps.
 
       - alert: ServiceDown
-        expr: openio_probe_success{service_type!~'meta\\d|redis.*|rawx|'} == 0
+        expr: sum(openio_probe_success{service_type!~'meta\\d|redis.*|rawx|'}) by (target, service_type, service) == 0
         for: 60s
         labels:
           severity: medium
+          host: "{{ $labels.target }}"
         annotations:
           summary: Service {{ $labels.service_type }} down
           description: >-
-            The service '{{ $labels.service }}' on server '{{ $labels.host }}' doesn't respond to healthchecks.
+            The service '{{ $labels.service }}' on server '{{ $labels.target }}' doesn't respond to healthchecks.
 
       - alert: AccountMalfunction
         expr: (count(openio_probe_success{service_type="account"} == 1) == 0)
@@ -247,20 +251,20 @@ groups:
         for: 60s
         labels:
           severity: medium
-          service: "{{ $labels.module }}"
+          service: "{{ $labels.job }}"
         annotations:
           summary: Metric collection failure
           description: >-
-            The metric collection service '{{ $labels.module }}' on server '{{ $labels.host }}' is down.
+            The metric collection service '{{ $labels.job }}' on server '{{ $labels.host }}' is down.
             This prevents monitoring from working properly and must be resolved.
           solutions: >-
             Check the state of the service by running
-            <code>systemctl status {{ if eq $labels.module "blackbox" }}blackbox_exporter{{ else }}netdata{{ end }}.
+            <code>gridinit_cmd status @{{ if eq $labels.job "oio-exporter" }}oio-exporter{{ else }}oio-netdata{{ end }}.
             If the service isn't started, start and enable it.
             If the service fails to start, contact the OpenIO support.
             Check that the service is reachable, if not, make sure ports 19999 and 9115 are open.
             You can test the availability by doing a HTTP GET request on the IP/port of the service.
-            The alert will be resolved when '{{ $labels.module }}' is up and running
+            The alert will be resolved when '{{ $labels.job }}' is up and running
             and can be contacted by the admin machine.
 
       - alert: MultipleVersions
@@ -299,7 +303,7 @@ groups:
             data to replicate (the fresh data that has been pushed to the cluster).
 
       - alert: Eventlet package version
-        expr: count(openio_version{software=~"^eventlet.*",version=~"0\\.(\\d|1\\d|2[01234])\\.\\d+-\\d+"}) > 0
+        expr: count(openio_version{software=~"^eventlet.*",version=~"0\\.(\\d|1\\d|2[01234])\\.\\d+-\\d+"}) by (software) > 0
         for: 60s
         labels:
           code: ERROR_EVENTLET_VERSION
