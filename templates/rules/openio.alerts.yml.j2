@@ -11,6 +11,7 @@ groups:
         expr: sum(up) by (host) == 0
         for: 5m
         labels:
+          code: ERROR_UNREACHABLE_NODE
           severity: medium
         annotations:
           summary: Unreachable node
@@ -30,6 +31,7 @@ groups:
           sum(netdata_system_ram_MiB_average{dimension='used'}) by (host)
         for: 5m
         labels:
+          code: ERROR_LOW_MEMORY
           severity: low
         annotations:
           summary: Low on memory
@@ -48,6 +50,7 @@ groups:
           sum(netdata_disk_space_GiB_average{dimension='used'}) by (host, family)
         for: 10s
         labels:
+          code: ERROR_LOW_DISK_SPACE
           severity: low
           volume: "{{ $labels.family }}"
         annotations:
@@ -67,6 +70,7 @@ groups:
         expr: sum(openio_log_requests_sum{code=~"5.*"}) by (host, service) > 0
         for: 10m
         labels:
+          code: ERROR_SERVER_ERRORS
           severity: medium
         annotations:
           summary: Server errors
@@ -82,6 +86,7 @@ groups:
         expr: sum(openio_beanstalkd_jobs{status="buried", tube="*"}) by (host) > 0
         for: 10m
         labels:
+          code: ERROR_BURIED_EVENTS
           severity: low
         annotations:
           summary: Background jobs failures
@@ -97,6 +102,7 @@ groups:
         expr: sum(openio_probe_success{service_type=~'meta[012]'}) by (target, service) == 0
         for: 30s
         labels:
+          code: ERROR_META_DOWN
           severity: medium
           host: "{{ $labels.target }}"
         annotations:
@@ -117,6 +123,7 @@ groups:
         expr: sum(openio_probe_success{service_type='rawx'}) by (target, service) == 0
         for: 30s
         labels:
+          code: ERROR_RAWX_DOWN
           severity: low
           host: "{{ $labels.target }}"
         annotations:
@@ -139,6 +146,7 @@ groups:
         expr: sum(openio_probe_success{service_type=~'redis|redissentinel'}) by (target, service) == 0
         for: 60s
         labels:
+          code: ERROR_REDIS_DOWN
           severity: medium
           host: "{{ $labels.target }}"
         annotations:
@@ -159,6 +167,7 @@ groups:
           by (cluster) < 1
         for: 30s
         labels:
+          code: ERROR_REDIS_NO_MASTER
           severity: medium
           cluster: "{{ $labels.cluster }}"
         annotations:
@@ -199,6 +208,7 @@ groups:
         expr: sum(openio_probe_success{service_type!~'meta\\d|redis.*|rawx|'}) by (target, service_type, service) == 0
         for: 60s
         labels:
+          code: ERROR_SERVICE_DOWN
           severity: medium
           host: "{{ $labels.target }}"
         annotations:
@@ -211,6 +221,7 @@ groups:
               or sum(openio_score{service_type="account"}) == 0
         for: 30s
         labels:
+          code: ERROR_ACCOUNT_MALFUNCTION
           severity: medium
         annotations:
           summary: Account service malfunction
@@ -230,6 +241,7 @@ groups:
         expr: count(openio_probe_success{service_type=~'galera|keystone'} == 0) by (service, service_type, target) > 0
         for: 30s
         labels:
+          code: ERROR_IAM_MALFUNCTION
           severity: medium
           host: "{{ $labels.target }}"
         annotations:
@@ -255,6 +267,7 @@ groups:
         expr: up{job=~'oio-exporter|netdata'} == 0
         for: 60s
         labels:
+          code: ERROR_METRIC_COLLECTION_FAILURE
           severity: medium
           service: "{{ $labels.job }}"
         annotations:
@@ -290,6 +303,7 @@ groups:
         expr: count(openio_beanstalkd_jobs{status="ready", tube="oio-repli"}) by (host) > 0
         for: 10m
         labels:
+          code: ERROR_REPLI_EVENTS
           severity: low
         annotations:
           summary: Replicator is not working properly
@@ -307,7 +321,7 @@ groups:
             Note: the speed of the replication highly depends on the network in between and the amount of
             data to replicate (the fresh data that has been pushed to the cluster).
 
-      - alert: Eventlet package version
+      - alert: EventletVersion
         expr: count(openio_version{software=~"^eventlet.*",version=~"0\\.(\\d|1\\d|2[01234])\\.\\d+-\\d+"}) by (software) > 0
         for: 60s
         labels:
