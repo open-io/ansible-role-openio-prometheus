@@ -232,4 +232,148 @@ groups:
           solutions: >-
             Update the eventlet packages to version >= 0.25
             This alert will be resolved once update is done.
+
+      - alert: FsHaServiceDown
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_resource_status_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: medium
+          service_type: oiofs
+          service: pacemaker
+        annotations:
+          summary: A resource oiofs HA is down
+          description: >-
+            A resource oiofs HA in pacemaker is down
+          solutions: >-
+            Run <code>pcs status</code> to find which resource is down.
+            If the service isn't started, start and enable it.
+            If the service fails to start, contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaOfflineNode
+        expr: >-
+          count(netdata_command__average{chart=~"cmd_oiofsha_pcs_resource_status_nodes_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: medium
+          service_type: oiofs
+          service: pacemaker
+        annotations:
+          summary: A node is offline in pacemaker
+          description: >-
+            A node is tagged offline
+          solutions: >-
+            Run <code>pcs status corosync</code> to find which node is down.
+            Check the firewall rules.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaDrbdIssue
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_drbd_status_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: medium
+          service_type: oiofs
+          service: drbd
+        annotations:
+          summary: DRBD cluster is not healthy
+          description: >-
+            DRBD nodes are not synchronized
+          solutions: >-
+            Run <code>drbdadm status</code> to display the problem.
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaLocationForced
+        expr: >-
+          count(netdata_command__average{chart=~"cmd_oiofsha_pcs_constraint_location_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: low
+          service_type: oiofs
+          service: pacemaker
+        annotations:
+          summary: A location constraint is defined in pacemaker
+          description: >-
+            A location constraint is defined in pacemaker
+          solutions: >-
+            Run <code>pcs constraint location</code> to display the constrains.
+            This happens after moving a resource explicitly.
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaMasterIssue
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_oiofs_master_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: medium
+          service_type: oiofs
+        annotations:
+          summary: This is many or no master for a container oiofs
+          description: >-
+            A container have many master or no master instance of oiofs
+          solutions: >-
+            Run <code>pcs status</code> to display the oiofs resources.
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaFence
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_stonith_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: medium
+          service_type: oiofs
+          service: stonith
+        annotations:
+          summary: A fencing resource is down
+          description: >-
+            A fencing resource is down
+          solutions: >-
+            Run <code>pcs stonith</code> to display the fence resources.
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaVip
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_vip_status_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: critical
+          service_type: oiofs
+          service: VirtualIpAddress
+        annotations:
+          summary: The virtual IP for oiofs is down
+          description: >-
+            The VIP for oiofs is down. All exports are unreachable.
+          solutions: >-
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaSamba
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_samba_status_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: critical
+          service_type: oiofs
+          service: samba
+        annotations:
+          summary: The virtual samba service for oiofs is down
+          description: >-
+            The samba for oiofs is down. All CIFS exports are unreachable.
+          solutions: >-
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
+
+      - alert: FsHaNfs
+        expr: count(netdata_command__average{chart=~"cmd_oiofsha_pcs_nfs_status_healthcheck_KO.*"}) by (host) > 0
+        for: 60s
+        labels:
+          severity: critical
+          service_type: oiofs
+          service: nfs
+        annotations:
+          summary: The virtual nfs service for oiofs is down
+          description: >-
+            The nfs-server for oiofs is down. All NFS exports are unreachable.
+          solutions: >-
+            Contact the OpenIO support.
+            This alert will be resolved once update is done.
 ...
