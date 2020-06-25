@@ -56,6 +56,14 @@ hostvars[inventory_hostname]['openio_bind_address']) }}"
     - openio_bind_mgmt_interface is not defined
   tags: configure
 
+- name: "Register admin IP of monitored node (check mode)"
+  set_fact:
+    prometheus_node_admin_ip: "ip_admin_check_mode"
+  when:
+    - inventory_hostname in prometheus_monitored_hosts
+    - ansible_check_mode
+  tags: configure
+
 - name: Cache hostnames
   set_fact:
     tmp_cached_hostnames: "{{ tmp_cached_hostnames | combine({item: hostvars[item]['ansible_nodename']}) }}"
